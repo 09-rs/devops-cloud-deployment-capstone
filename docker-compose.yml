@@ -1,7 +1,7 @@
 services:
 
   backend:
-    image: devops-backend:v3
+    image: devops-backend:v4
     container_name: devops-backend
     ports:
       - "5000:5000"
@@ -20,10 +20,10 @@ services:
 
     environment:
       DB_HOST: database
-      DB_PORT: 1433
+      DB_PORT: 5432
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
-      DB_PASSWORD: ${MSSQL_SA_PASSWORD}
+      DB_PASSWORD: ${DB_PASSWORD}
 
   frontend:
     image: devops-frontend:v2
@@ -43,28 +43,30 @@ services:
       - backend
 
   database:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: postgres:17
     container_name: devops-database
 
     environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
 
     ports:
-      - "1433:1433"
+      - "5432:5432"
 
     volumes:
-      - sqlserver-data:/var/opt/mssql
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
     restart: unless-stopped
 
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q \"SELECT 1\" || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 10s
 
 volumes:
 
-  sqlserver-data:
+  postgres-data:
